@@ -28,21 +28,36 @@ def create_figure(df):
     return fig
 
 
-def boost_data(df):
-    vect = np.array([0.21, 0.32, 0.17])
+# def boost_data(df):
+#     vect = np.array([0.21, 0.32, 0.17])
 
-    df["distance"] = np.pow(
-        1 - (np.sqrt(np.pow(df[["x", "y", "z"]] - vect, 2).sum(axis=1)) / np.sqrt(3)),
-        BLOB_SIZE_EXPONENT,
-    )
-    df.loc[df["distance"] < 0.1, "distance"] = 0
-    return df
+#     df["distance"] = np.pow(
+#         1 - (np.sqrt(np.pow(df[["x", "y", "z"]] - vect, 2).sum(axis=1)) / np.sqrt(3)),
+#         BLOB_SIZE_EXPONENT,
+#     )
+#     df.loc[df["distance"] < 0.1, "distance"] = 0
+#     return df
 
 
 def decay_data(df):
     df["distance"] = df["distance"] * DECAY_COEF
     df.loc[df["distance"] < 0.1, "distance"] = 0
 
+    return df
+
+
+def update_vector(base_vector, update_vector):
+    return base_vector * 0.9 + update_vector * 0.1
+
+
+def add_measurement(df, vect):
+    # vect = np.array([0.21, 0.32, 0.17])
+
+    df["distance"] = df["distance"] + np.pow(
+        1 - (np.sqrt(np.pow(df[["x", "y", "z"]] - vect, 2).sum(axis=1)) / np.sqrt(3)),
+        BLOB_SIZE_EXPONENT,
+    )
+    df.loc[df["distance"] < 0.1, "distance"] = 0
     return df
 
 
@@ -57,43 +72,41 @@ def get_clean_df():
     return df
 
 
+def get_clean_vect():
+    return np.zeros((3,))
+
+
 app = dash.Dash(__name__)
 
 app.layout = html.Div(
     [
-        html.H1("Real-time Decay & Boost", style={"textAlign": "center"}),
+        html.H1("Nie w sumie nie mam żadnego pomysłu", style={"textAlign": "center"}),
         dcc.Graph(id="live-graph"),
-        html.Div(
-            [
-                html.Button(
-                    "update",
-                    id="boost-btn",
-                    n_clicks=0,
-                    style={
-                        "fontSize": "20px",
-                        "padding": "15px 30px",
-                        "backgroundColor": "#2ecc71",
-                        "color": "white",
-                        "border": "none",
-                        "cursor": "pointer",
-                    },
-                )
-            ],
-            style={"textAlign": "center", "marginTop": "20px"},
-        ),
         dcc.Interval(id="interval-component", interval=100, n_intervals=0),
-    ]
+    ],
+    style={
+        "height": "85vh",
+        "width": "50vw",
+        "margin": 0,
+        "padding": 0,
+        "overflow": "hidden",
+        "alighn": "left",
+    },
 )
 
-current_df = get_clean_df()
+global_df = get_clean_df()
+global_vect = get_clean_vect()
+global_target = np.array([1, 1, 0])
 
 
 @app.callback(
     Output("live-graph", "figure"),
-    [Input("interval-component", "n_intervals"), Input("boost-btn", "n_clicks")],
+    Input("interval-component", "n_intervals"),
 )
-def update_metrics(n_intervals, n_clicks):
-    global current_df
+def update_metrics(n_intervals):
+    global global_df
+    global global_vect
+    global global_target
 
     ctx = callback_context
     if not ctx.triggered:
@@ -102,19 +115,26 @@ def update_metrics(n_intervals, n_clicks):
         trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
     try:
-        current_df.head()  # Convert JSON back to DataFrame
+        global_df.head()  # Convert JSON back to DataFrame
     except (ValueError, TypeError):
         # Fallback in case of bad data
-        current_df = get_clean_df()
+        global_df = get_clean_df()
 
     # Apply Logic
-    if trigger_id == "boost-btn":
-        current_df = boost_data(current_df)
-    elif trigger_id == "interval-component":
-        current_df = decay_data(current_df)
+    # if trigger_id == "boost-btn":
+    #     current_df = boost_data(current_df)
+    if trigger_id == "interval-component":
+        if (global_vect - global_target).sum() < 0.1:
+            global_target = np.random.random((3,))
+            print(f"new target {global_target}")
+
+        global_df = decay_data(global_df)
+        global_vect = update_vector(global_vect, global_target)
+        global_df = add_measurement(global_df, global_vect)
+        print(global_vect)
 
     # Create the new figure
-    fig = create_figure(current_df)
+    fig = create_figure(global_df)
 
     return fig
 
