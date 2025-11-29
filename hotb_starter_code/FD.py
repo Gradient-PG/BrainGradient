@@ -157,14 +157,11 @@ class FractalEmotionModel:
         valence_score = fd_af3 - fd_f4
         valence_level = 1 if valence_score > self.valence_threshold else 0
         
-        return self.map_discrete_emotion(valence_level, arousal_level)
+        
+        return valence_level,arousal_level
 
-    def map_discrete_emotion(self, valence, arousal):
-        """
-        Maps (Valence, Arousal) pairs to 6 discrete emotions.
-        Based strictly on Table III[cite: 292].
-        """
-        mapping = {
+
+mapping = {
             (0, 0): "Sad",
             (0, 1): "Frustrated",
             (0, 2): "Fear",
@@ -172,13 +169,6 @@ class FractalEmotionModel:
             (1, 1): "Pleasant",
             (1, 2): "Happy"
         }
-        return valence,arousal
-
-# --- Example Usage ---
-# Simulate 1 second of data (1024 samples approx at higher rate or window size)
-# The paper uses a window size of 1024 samples[cite: 212].
-
-# Initialize model
 pad_model = FractalEmotionModel(sampling_rate=128)
 
 raw = mne.io.read_raw_fif("data/2.fif", preload=True)
