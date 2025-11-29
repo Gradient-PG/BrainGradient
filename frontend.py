@@ -10,6 +10,7 @@ from dash import dcc, html, Input, Output, State, callback_context
 import plotly.graph_objects as go
 
 DECAY_COEF = 0.8
+BLOB_SIZE_EXPONENT = 20
 
 
 # 1. Define the Logic Functions
@@ -21,6 +22,7 @@ def create_figure(df):
         size=df["distance"],
         color=df["distance"],
         opacity=0.7,
+        color_continuous_midpoint=0.5,
     )
     fig.update_traces(marker=dict(line=dict(width=0)))
     return fig
@@ -31,19 +33,17 @@ def boost_data(df):
 
     df["distance"] = np.pow(
         1 - (np.sqrt(np.pow(df[["x", "y", "z"]] - vect, 2).sum(axis=1)) / np.sqrt(3)),
-        10,
+        BLOB_SIZE_EXPONENT,
     )
     df.loc[df["distance"] < 0.1, "distance"] = 0
     return df
 
 
 def decay_data(df):
-    """Decays value (floored at 0)."""
-
     df["distance"] = df["distance"] * DECAY_COEF
     df.loc[df["distance"] < 0.1, "distance"] = 0
 
-    return df  # Decays by 10%
+    return df
 
 
 def get_clean_df():
@@ -81,27 +81,20 @@ app.layout = html.Div(
             ],
             style={"textAlign": "center", "marginTop": "20px"},
         ),
-        dcc.Interval(id="interval-component", interval=500, n_intervals=0),
-        # dcc.Store(id="data-store", data={"df_base": df_base}),
-        html.Div(
-            id="current-value-storage", children="50.0", style={"display": "none"}
-        ),
+        dcc.Interval(id="interval-component", interval=100, n_intervals=0),
     ]
 )
 
 current_df = get_clean_df()
 
 
-# 4. The Callback
 @app.callback(
-    [Output("live-graph", "figure"), Output("current-value-storage", "children")],
+    Output("live-graph", "figure"),
     [Input("interval-component", "n_intervals"), Input("boost-btn", "n_clicks")],
-    [State("current-value-storage", "children")],
 )
-def update_metrics(n_intervals, n_clicks, data):
-    global current_df  # Declare current_df as global
+def update_metrics(n_intervals, n_clicks):
+    global current_df
 
-    # Determine what triggered the callback
     ctx = callback_context
     if not ctx.triggered:
         trigger_id = "No triggers"
@@ -109,24 +102,21 @@ def update_metrics(n_intervals, n_clicks, data):
         trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
     try:
-        current_df = pd.read_json(data)  # Convert JSON back to DataFrame
+        current_df.head()  # Convert JSON back to DataFrame
     except (ValueError, TypeError):
         # Fallback in case of bad data
         current_df = get_clean_df()
 
     # Apply Logic
     if trigger_id == "boost-btn":
-        # Apply Boost
         current_df = boost_data(current_df)
     elif trigger_id == "interval-component":
-        # Apply Decay
         current_df = decay_data(current_df)
 
     # Create the new figure
     fig = create_figure(current_df)
 
-    # Return the figure and the new state as JSON
-    return fig, current_df.to_json()
+    return fig
 
 
 app.run(debug=True, use_reloader=True)
