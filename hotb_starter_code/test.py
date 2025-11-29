@@ -42,6 +42,7 @@ device_name = "BA MINI 045"
 
 # start EEG acquisition setup
 with EEGManager() as mgr:
+    print("with EEGManager()")
     eeg.setup(mgr, device_name=device_name, cap=halo, sfreq=250)
 
     # Start acquiring data
