@@ -18,7 +18,7 @@ class DataAcquisition:
         self.emotion_model = FractalEmotionModel(sampling_rate=128)
         self.device_name = "BA MINI 045"
         self.eeg = acquisition.EEG()
-        # self.mgr = EEGManager()
+        self.mgr = EEGManager()
         # self.mgr.connect(self.device_name)
         self.data : mne.io.Raw = None
         self.halo: dict = {
@@ -47,7 +47,7 @@ class DataAcquisition:
             print("Acquisition started")
             time.sleep(3)
 
-            annotation = 1
+            # annotation = 1
             while self.run:
                 print("self.run")
                 time.sleep(1)
@@ -57,22 +57,23 @@ class DataAcquisition:
                 # annotation += 1
                 self.data = self.eeg.get_mne(tim=1,samples=250)
                 pckg = self.process_mne()
+            self.stop_recording(mgr)
 
+    def set_run(self, new_run:bool):
+        self.run = new_run
 
     def process_mne(self):
         self.filter_data()
         pckg = self.get_data()
         return pckg
 
-    def stop_recording(self):    
+    def stop_recording(self, mgr):    
         self.run = False
         print("Preparing to plot data")
         time.sleep(2)
         # get all eeg data and stop acquisition
-        self.eeg.get_mne()
         self.eeg.stop_acquisition()
-        # self.mgr.disconnect()       
-        # self.data = self.eeg.data.mne_raw
+        mgr.disconnect()       
         self.eeg.close()
 
     def filter_data(self):
@@ -83,8 +84,6 @@ class DataAcquisition:
         # 2 Hz to 42 Hz
         self.data.filter(2, 42)
         print("filter")
-
-
 
     def get_power_band(self, spectrum:mne.time_frequency.Spectrum, band:list):
         fmin, fmax = band
@@ -121,7 +120,7 @@ class DataAcquisition:
         print("dominance")
         return dominance
     
-    def calculate_Arousal(self):
+    def calculate_arousal(self):
         if self.data is None:
             return
         _, arousal= self.get_emotion()
@@ -140,7 +139,7 @@ class DataAcquisition:
         self._last_arousal = arousal
         return valence,arousal
         
-    def calculate_Valence(self):
+    def calculate_valence(self):
         if self.data is None:
             return 
         valence, _ = self.get_emotion()
@@ -151,8 +150,8 @@ class DataAcquisition:
 
     def get_data(self):
         pckg = {}
-        pckg["valence"] = self.calculate_Valence()
-        pckg["arousal"] = self.calculate_Arousal()
+        pckg["valence"] = self.calculate_valence()
+        pckg["arousal"] = self.calculate_arousal()
         pckg["dominance"] = self.calculate_dominance()
         print(pckg)
         return pckg
@@ -166,17 +165,3 @@ if __name__ == "__main__":
     pckg = data_ac.process_mne()
     print(pckg)
     data_getter.join()
-
-# # Access data as NumPy arrays
-# data, times = mne_raw.get_data(return_times=True)
-# print(f"Data shape: {data.shape}")
-
-# # save EEG data to MNE fif format
-# eeg.data.save(f'./data/{time.strftime("%Y%m%d_%H%M")}-raw.fif')
-# # Close brainaccess library
-# eeg.close()
-# # conversion to microvolts
-# mne_raw.apply_function(lambda x: x*10**-6)
-# # Show recorded data
-# mne_raw.filter(1, 40).plot(scalings="auto", verbose=False)
-# plt.show()
