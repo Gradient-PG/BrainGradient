@@ -7,6 +7,7 @@ import threading
 
 from brainaccess.utils import acquisition
 from brainaccess.core.eeg_manager import EEGManager
+from hotb_starter_code.FD import FractalEmotionModel
 
 matplotlib.use("TKAgg", force=True)
 
@@ -14,18 +15,19 @@ matplotlib.use("TKAgg", force=True)
 class DataAcquisition:
 
     def __init__(self):
+        self.emotion_model = FractalEmotionModel(sampling_rate=128)
         self.device_name = "BA MINI 045"
         self.eeg = acquisition.EEG()
         # self.mgr = EEGManager()
         # self.mgr.connect(self.device_name)
         self.data : mne.io.Raw = None
         self.halo: dict = {
-        0: "F4",
-        1: "F3",
-        2: "C4",
-        3: "C3",
-        4: "P4",
-        5: "P3",
+        0: "AF3",
+        1: "AF4",
+        2: "F3",
+        3: "F4",
+        4: "FC5",
+        5: "FC6",
         6: "O2",
         7: "O1",
         }
@@ -118,15 +120,40 @@ class DataAcquisition:
         dominance = (a_sum + b_sum) / 2
         print("dominance")
         return dominance
-
+    
+    def calculate_Arousal(self):
+        if self.data is None:
+            return
+        _, arousal= self.get_emotion()
+        return arousal
+        
+    def get_emotion(self):
+        if self.data is None:
+            return 
+        
+        raw_af3 = self.data.copy().pick_channels(['AF3']).get_data()[0]
+        raw_f4  = self.data.copy().pick_channels(['AF4']).get_data()[0]
+        raw_fc6 = self.data.copy().pick_channels(['F3']).get_data()[0]
+        valence,arousal =self.emotion_model.predict_window(raw_af3,raw_f4,raw_fc6)
+        
+        self._last_valence = valence
+        self._last_arousal = arousal
+        return valence,arousal
+        
+    def calculate_Valence(self):
+        if self.data is None:
+            return 
+        valence, _ = self.get_emotion()
+        return valence
+        
     def mne2pd(self):
         return self.data.to_data_frame()
 
     def get_data(self):
         pckg = {}
-        pckg["Valence"] = None
-        pckg["Arousal"] = None
-        pckg["Dominance"] = self.calculate_dominance()
+        pckg["valence"] = self.calculate_Valence()
+        pckg["arousal"] = self.calculate_Arousal()
+        pckg["dominance"] = self.calculate_dominance()
         print(pckg)
         return pckg
 

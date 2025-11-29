@@ -4,7 +4,7 @@ from sklearn.ensemble import RandomForestRegressor
 from scipy.integrate import simpson
 from scipy.signal import welch
 from scipy.signal import butter, filtfilt
-
+from hotb_starter_code.FD import FractalEmotionModel
 def higuchi_fd(time_series, k_max):
     """
     Implements the Higuchi Fractal Dimension (HFD) algorithm.
@@ -98,3 +98,25 @@ class FractalEmotionModel:
         
         
         return valence_level,arousal_level
+
+
+mapping = {
+            (0, 0): "Sad",
+            (0, 1): "Frustrated",
+            (0, 2): "Fear",
+            (1, 0): "Satisfied",
+            (1, 1): "Pleasant",
+            (1, 2): "Happy"
+        }
+pad_model = FractalEmotionModel(sampling_rate=128)
+
+raw = mne.io.read_raw_fif("data/2.fif", preload=True)
+
+raw_af3 = raw.copy().pick_channels(['AF3']).get_data()[0]
+raw_f4  = raw.copy().pick_channels(['AF4']).get_data()[0]
+raw_fc6 = raw.copy().pick_channels(['F3']).get_data()[0]
+
+# Run prediction
+emotion = pad_model.predict_window(raw_af3, raw_f4, raw_fc6)
+
+print(f"Predicted Emotion: {emotion}")
