@@ -10,8 +10,6 @@ from brainaccess.core.eeg_manager import EEGManager
 matplotlib.use("TKAgg", force=True)
 
 
-
-
 class DataAcquisition:
 
     def __init__(self):
@@ -29,6 +27,9 @@ class DataAcquisition:
         6: "O2",
         7: "O1",
         }
+        alpha = [7,14] # Alpha:   8   – 13  Hz   → Relaxed wakefulness, calm focus
+        beta = [14,30] # Beta:    13  – 30  Hz   → Active thinking, alertness, problem-solving
+        self.bands_freq = [alpha, beta]
         self.run = False
 
     def send_annotate(self):
@@ -64,13 +65,46 @@ class DataAcquisition:
         # 2 Hz to 42 Hz
         self.data.filter(2, 42)
 
+    def get_power_band(self, spectrum:mne.time_frequency.Spectrum, band:list):
+        fmin, fmax = band
+        power, freqs = spectrum.get_data(return_freqs=True, fmin=fmin, fmax=fmax)
+        return power, freqs
+
+    def extract_all_power_bands(self, spectrum:mne.time_frequency.Spectrum):
+        power_bands = []
+        for band in self.bands_freq:
+            power_bands.append(self.get_power_band(spectrum, band))
+        return power_bands
+
+    def sum_channels(self, power) -> float:
+        n = 0
+        band_sum = 0
+        for ch in power:
+            for val in ch:
+                n+=1
+                band_sum += val
+        return band_sum / n
+
     def calculate_dominance(self):
         psd = self.data.compute_psd(tmin=0, tmax=60, fmin=2, fmax=50)
+        bands = self.extract_all_power_bands(psd)
+        alpha = bands[0]
+        beta = bands[1]
 
+        a_sum = self.sum_channels(alpha[0])
+        b_sum = self.sum_channels(beta[0])
+        dominance = (a_sum + b_sum) / 2
+        return dominance
 
     def mne2pd(self):
         return self.data.to_data_frame()
 
+    def get_data(self):
+        pckg = {}
+        pckg["Valence"] = None
+        pckg["Arousal"] = None
+        pckg["Dominance"] = self.calculate_dominance()
+        return pckg
 
 # # Access data as NumPy arrays
 # data, times = mne_raw.get_data(return_times=True)
