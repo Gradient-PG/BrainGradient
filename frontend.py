@@ -22,32 +22,62 @@ def create_3d_figure(df):
         z=df["z"],
         size=df["distance"],
         color=df["distance"],
-        opacity=0.7,
-        color_continuous_midpoint=0.5,
+        opacity=0.8,
+        # Używamy Twojej palety dla punktów (opcjonalnie)
+        color_continuous_scale=[[0, '#1F0034'], [0.5, '#572CD5'], [1, '#E5BB54']],
     )
     fig.update_traces(marker=dict(line=dict(width=0)))
-    fig.update_layout(coloraxis_showscale=False)
+
+    # KLUCZOWE: Usunięcie tła i zmiana kolorów siatki
+    fig.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',  # Przezroczyste tło całego canvasu
+        plot_bgcolor='rgba(0,0,0,0)',  # Przezroczyste tło wykresu
+        coloraxis_showscale=False,
+        scene=dict(
+            xaxis=dict(backgroundcolor="rgba(0,0,0,0)", gridcolor="#572CD5", zerolinecolor="#9570FF",
+                       showbackground=False, title_font=dict(color="#E5BB54")),
+            yaxis=dict(backgroundcolor="rgba(0,0,0,0)", gridcolor="#572CD5", zerolinecolor="#9570FF",
+                       showbackground=False, title_font=dict(color="#E5BB54")),
+            zaxis=dict(backgroundcolor="rgba(0,0,0,0)", gridcolor="#572CD5", zerolinecolor="#9570FF",
+                       showbackground=False, title_font=dict(color="#E5BB54")),
+        ),
+        margin=dict(l=0, r=0, b=0, t=0)  # Usunięcie marginesów
+    )
     return fig
 
 
 def create_history_areaplot(df: pd.DataFrame):
-    # {
-    #     "arousal": 1,
-    #     "valence": 1,
-    #     "dominance": 1,
-    # }
-
     df_melted = df.melt(
         value_vars=["arousal", "valence", "dominance"], id_vars=["step"]
     )
-
     df_melted = df_melted[df_melted["step"].max() == df_melted["step"]]
-    return px.bar(
+
+    # Mapa kolorów dla słupków
+    color_map = {
+        "arousal": "#9570FF",  # Jasny fiolet
+        "valence": "#E5BB54",  # Żółty
+        "dominance": "#572CD5"  # Główny fiolet
+    }
+
+    fig = px.bar(
         df_melted,
         x="variable",
         y="value",
         color="variable",
+        color_discrete_map=color_map
     )
+
+    # KLUCZOWE: Ciemny motyw dla wykresu 2D
+    fig.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='#E0E0E0'),  # Jasna czcionka
+        showlegend=False,
+        margin=dict(l=40, r=20, b=30, t=20),
+        xaxis=dict(title=None, gridcolor='rgba(149, 112, 255, 0.2)'),
+        yaxis=dict(title=None, gridcolor='rgba(149, 112, 255, 0.2)', zerolinecolor='#9570FF')
+    )
+    return fig
 
 
 def decay_data(df):
@@ -99,7 +129,7 @@ app = dash.Dash(__name__)
 
 app.layout = html.Div(
     [
-        html.H1("Nie w sumie nie mam żadnego pomysłu", style={"textAlign": "center"}),
+        html.H1("AuraCloud - Real-time Emotion Mapping from EEG", style={"textAlign": "center"}),
         html.Div(
             [
                 dcc.Graph(

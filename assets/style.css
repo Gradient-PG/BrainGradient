@@ -1,0 +1,27 @@
+/* assets/style.css */
+body {
+    background-color: #1F0034;
+    color: #E0E0E0;
+    font-family: 'Segoe UI', sans-serif;
+    margin: 0;
+}
+
+h1 {
+    color: #E5BB54;
+    text-shadow: 0 0 10px rgba(229, 187, 84, 0.3);
+    font-weight: 300;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding-top: 20px;
+}
+
+/* Stylizacja kontenerów wykresów (karty) */
+.dash-graph {
+    background: rgba(87, 44, 213, 0.1); /* Główny fiolet przezroczysty */
+    border: 1px solid #9570FF;
+    border-radius: 15px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(87, 44, 213, 0.1);
+    backdrop-filter: blur(5px);
+    margin: 10px;
+    padding: 10px;
+}
