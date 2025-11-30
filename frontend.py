@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 import numpy as np
 import pandas as pd
 import time
+from data_pipeline import DataAcquisition
 
 # --- KONFIGURACJA (BEZ ZMIAN) ---
 DECAY_COEF = 0.6
@@ -191,6 +192,8 @@ global_df = get_clean_live_df()
 global_vect = get_clean_vect()
 global_target = np.array([1, 1, 0])
 global_now = time.time()
+global_data_aquisition = DataAcquisition()
+global_target_history = []
 
 # --- APP SETUP ---
 app = Dash(__name__)
@@ -444,6 +447,8 @@ def update_metrics(old_3d_fig, barplot_fig, n_intervals):
     global global_vect
     global global_target
     global global_now
+    global global_data_aquisition
+    global global_target_history
 
     ctx = callback_context
     trigger_id = (
@@ -461,8 +466,15 @@ def update_metrics(old_3d_fig, barplot_fig, n_intervals):
             print("time diff", diff)
         global_now = time.time()
 
-        if np.abs(global_vect - global_target).sum() < 0.3:
-            global_target = np.random.random((3,))
+
+        prev_len = len(global_target_history)
+        global_data_aquisition.data_consumer(global_target_history)
+        if prev_len != len(global_target_history):
+            global_target = global_target_history[-1]
+
+        # # Random targeting
+        # if np.abs(global_vect - global_target).sum() < 0.3:
+        #     global_target = np.random.random((3,))
 
             target_dict = {
                 "arousal": global_target[0],
@@ -534,5 +546,6 @@ def toggle_modal_display(
 
     return new_style, new_store_data
 
-
-app.run(debug=True, use_reloader=True)
+if __name__ == "__main__":
+    # global_data_aquisition.
+    app.run(debug=True, use_reloader=True)
