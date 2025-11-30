@@ -26,19 +26,24 @@ COLORS = {
 
 def create_3d_figure(df):
     fig = px.scatter_3d(
-        x=df["x"],
-        y=df["y"],
-        z=df["z"],
-        size=df["distance"],
-        color=df["distance"],
+        df,
+        x="x",
+        y="y",
+        z="z",
+        size="distance",
+        color="distance",
         opacity=0.8,
-        color_continuous_scale=[
-            [0, COLORS["background"]],
-            [0.5, COLORS["primary"]],
-            [1, COLORS["accent"]],
-        ],
+        # color_continuous_scale=[
+        #     [0, COLORS["background"]],
+        #     [0.5, COLORS["primary"]],
+        #     [1, COLORS["accent"]],
+        # ],
     )
     fig.update_traces(marker=dict(line=dict(width=0)))
+    fig.update_traces(
+        marker=dict(symbol="diamond"),
+        # selector=dict(mode="`markers"),
+    )
 
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",  # Przezroczyste tło całego canvasu
@@ -46,25 +51,68 @@ def create_3d_figure(df):
         coloraxis_showscale=False,
         margin=dict(l=0, r=0, b=0, t=0),
         scene=dict(
+            #             "arousal"
+            # "valence"
+            # "dominance"
             xaxis=dict(
+                title=dict(text="Arousal"),
                 backgroundcolor="rgba(0,0,0,0)",
                 gridcolor=COLORS["primary"],
                 showbackground=False,
-                title_font=dict(color=COLORS["accent"]),
+                title_font=dict(color=COLORS["accent"], size=40),
             ),
             yaxis=dict(
+                title=dict(text="Valence"),
                 backgroundcolor="rgba(0,0,0,0)",
                 gridcolor=COLORS["primary"],
                 showbackground=False,
-                title_font=dict(color=COLORS["accent"]),
+                title_font=dict(color=COLORS["accent"], size=40),
             ),
             zaxis=dict(
+                title=dict(text="Dominance"),
                 backgroundcolor="rgba(0,0,0,0)",
                 gridcolor=COLORS["primary"],
                 showbackground=False,
-                title_font=dict(color=COLORS["accent"]),
+                title_font=dict(color=COLORS["accent"], size=40),
             ),
         ),
+    )
+
+    df_reference = pd.DataFrame(
+        {
+            "name": [
+                "Safe",
+                "Satisfied",
+                "Surprised",
+                "Happy",
+                "Sad",
+                "Unbother",
+                "Scared",
+                "Angry",
+            ],
+            "valence": [0.75, 0.75, 0.75, 0.75, 0.25, 0.25, 0.25, 0.25],
+            "arousal": [0.25, 0.25, 0.75, 0.75, 0.25, 0.25, 0.75, 0.75],
+            "dominance": [0.25, 0.75, 0.25, 0.75, 0.25, 0.75, 0.25, 0.75],
+        }
+    )
+
+    fig.add_trace(
+        go.Scatter3d(
+            x=df_reference["arousal"],
+            y=df_reference["valence"],
+            z=df_reference["dominance"],
+            mode="markers+text",
+            text=df_reference["name"],
+            textposition="top center",
+            marker=dict(
+                size=6,
+                color="white",
+                opacity=1.0,
+                line=dict(width=2, color="black"),
+                symbol="circle",
+            ),
+            showlegend=False,
+        )
     )
     return fig
 
