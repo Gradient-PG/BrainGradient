@@ -38,15 +38,6 @@ class DataAcquisition:
         self.run = False
         self.data_queue = queue.Queue()
 
-        pckg_list = []
-
-        data_producer = threading.Thread(target=self.send_annotate, daemon=True)
-        data_consumer = threading.Thread(target=self.data_consumer, args=(pckg_list,), daemon=True)
-
-        print("here")
-
-        data_producer.start()
-        data_consumer.start()
 
         # data_consumer.join()
         # data_producer.join()
@@ -64,7 +55,7 @@ class DataAcquisition:
             time.sleep(3)
 
             while self.run:
-                print("self.run")
+                # print("self.run")
                 time.sleep(1)
                 self.data = self.eeg.get_mne(tim=1,samples=250)
                 pckg = self.process_mne()
@@ -110,10 +101,10 @@ class DataAcquisition:
         if self.data is None:
             return
         self.data.notch_filter(50,)
-        print("notch")
+        # print("notch")
         # 2 Hz to 42 Hz
         self.data.filter(2, 42)
-        print("filter")
+        # print("filter")
 
     def get_power_band(self, spectrum:mne.time_frequency.Spectrum, band:list):
         fmin, fmax = band
@@ -133,7 +124,6 @@ class DataAcquisition:
             for val in ch:
                 n+=1
                 band_sum += val
-        print("sum")
         return band_sum / n
 
     def calculate_dominance(self):
@@ -187,7 +177,7 @@ class DataAcquisition:
         pckg["valence"] = self.calculate_valence()
         pckg["arousal"] = self.calculate_arousal()
         pckg["dominance"] = self.calculate_dominance()
-        print(pckg)
+        print(f"Received data {pckg}")
         return pckg
 
 

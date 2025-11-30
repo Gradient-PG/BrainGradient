@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import time
 from data_pipeline import DataAcquisition
+import threading
 
 # --- KONFIGURACJA (BEZ ZMIAN) ---
 DECAY_COEF = 0.6
@@ -450,6 +451,8 @@ def update_metrics(old_3d_fig, barplot_fig, n_intervals):
     global global_data_aquisition
     global global_target_history
 
+    print("Frontend api tick")
+
     ctx = callback_context
     trigger_id = (
         ctx.triggered[0]["prop_id"].split(".")[0] if ctx.triggered else "No triggers"
@@ -461,10 +464,10 @@ def update_metrics(old_3d_fig, barplot_fig, n_intervals):
         global_df = get_clean_live_df()
 
     if trigger_id == "interval-component":
-        diff = time.time() - global_now
-        if diff > 0.2:
-            print("time diff", diff)
-        global_now = time.time()
+        # diff = time.time() - global_now
+        # if diff > 0.2:
+        #     print("time diff", diff)
+        # global_now = time.time()
 
 
         prev_len = len(global_target_history)
@@ -547,5 +550,12 @@ def toggle_modal_display(
     return new_style, new_store_data
 
 if __name__ == "__main__":
-    # global_data_aquisition.
+    pckg_list = []
+
+    data_producer = threading.Thread(target=global_data_aquisition.send_annotate)
+    data_consumer = threading.Thread(target=global_data_aquisition.data_consumer, args=(pckg_list,))
+
+    data_producer.start()
+    data_consumer.start()
+
     app.run(debug=True, use_reloader=True)
