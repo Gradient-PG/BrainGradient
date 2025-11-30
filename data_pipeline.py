@@ -4,6 +4,7 @@ import time
 import mne
 import pandas as pd
 import threading
+import queue
 
 from brainaccess.utils import acquisition
 from brainaccess.core.eeg_manager import EEGManager
@@ -35,6 +36,7 @@ class DataAcquisition:
         theta = [4, 8]
         self.bands_freq = [alpha, beta, theta]
         self.run = False
+        self.data_queue = queue.Queue()
 
     def send_annotate(self):
         with EEGManager() as mgr:
@@ -47,17 +49,31 @@ class DataAcquisition:
             print("Acquisition started")
             time.sleep(3)
 
-            # annotation = 1
             while self.run:
                 print("self.run")
                 time.sleep(1)
-                # send annotation to the device
-                # print(f"Sending annotation {annotation} to the device")
-                # self.eeg.annotate(str(annotation))
-                # annotation += 1
                 self.data = self.eeg.get_mne(tim=1,samples=250)
                 pckg = self.process_mne()
+                if pckg:
+                    self.data_queue.put(pckg)
             self.stop_recording(mgr)
+
+    def data_consumer(self, pckg_list):
+        """ CONSUMER THREAD: Reads data from the Queue """
+        print("Consumer thread started...")
+        while self.run or not self.data_queue.empty():
+            try:
+                # 3. Get data from queue (waits up to 1 second for data)
+                pckg = self.data_queue.get(timeout=1) 
+                pckg_list.append(pckg)
+                print(f" [Consumer Thread] Received: {pckg}")
+
+                self.data_queue.task_done()
+            except queue.Empty:
+                # No data received within timeout, loop again to check self.run
+                continue
+            except Exception as e:
+                print(f"Consumer error: {e}")
 
     def set_run(self, new_run:bool):
         self.run = new_run
@@ -96,7 +112,7 @@ class DataAcquisition:
             power_bands.append(self.get_power_band(spectrum, band))
         return power_bands
 
-    def sum_channels(self, power) -> float:
+    def avg_channels(self, power) -> float:
         n = 0
         band_sum = 0
         for ch in power:
@@ -115,17 +131,13 @@ class DataAcquisition:
         beta = bands[1]
         theta = bands[2]
 
-        a_avg = self.sum_channels(alpha[0])
-        b_avg = self.sum_channels(beta[0])
-        t_avg = self.sum_channels(theta[0])
+        a_avg = self.avg_channels(alpha[0])
+        b_avg = self.avg_channels(beta[0])
+        t_avg = self.avg_channels(theta[0])
         xa = a_avg/b_avg
         xb = t_avg/b_avg
         stress = 0.5*(xa + xb)
         dominance = -self.calculate_valence() + stress
-
-        
-        # dominance = (a_sum + b_sum) / 2
-        # print("dominance")
         return dominance
     
     def calculate_arousal(self):
@@ -167,9 +179,15 @@ class DataAcquisition:
 
 if __name__ == "__main__":
     data_ac = DataAcquisition()
-    data_getter = threading.Thread(target=data_ac.send_annotate, daemon=True)
-    data_getter.start()
+    
+    # packages
+    pckg_list = []
 
-    pckg = data_ac.process_mne()
-    print(pckg)
-    data_getter.join()
+    data_producer = threading.Thread(target=data_ac.send_annotate, daemon=True)
+    data_consumer = threading.Thread(target=data_ac.data_consumer, args=(pckg_list,), daemon=True)
+    
+    data_producer.start()
+    data_consumer.start()
+
+    data_consumer.join()
+    data_producer.join()
