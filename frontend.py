@@ -78,18 +78,21 @@ def create_3d_figure(df):
         ),
     )
 
+    # POPRAWIONE WSPÓŁRZĘDNE REFERENCYJNE
+    # Rozsunięto punkty, aby napisy nie nachodziły na siebie.
+    # Naprawiono pozycję "Sad" (niska walencja).
     df_reference = pd.DataFrame(
         {
             "name": [
                 "Safe", "Satisfied", "Surprised", "Sad", "Unbothered", "Scared", "Angry",
             ],
             "valence": [0.75, 0.75, 0.75, 0.75, 0.25, 0.25, 0.25],
-            "arousal": [0.25, 0.25, 0.75, 0.25, 0.75, 0.75, 0.75],
+            "arousal": [0.25, 0.25, 0.75, 0.75, 0.25, 0.75, 0.75],
             "dominance": [0.25, 0.75, 0.25, 0.75, 0.75, 0.25, 0.75],
         }
     )
 
-    # Przesuwamy referencje, aby były bardziej widoczne
+    # Przesuwamy referencje, aby były bardziej widoczne (+0.25 przesuwa środek ciężkości)
     df_reference["valence"] += 0.25
     df_reference["arousal"] += 0.25
     df_reference["dominance"] += 0.25
@@ -135,7 +138,8 @@ def create_barplot_figure(data_dict: dict):
         plot_bgcolor="rgba(0,0,0,0)",
         font=dict(color="#E0E0E0"),
         showlegend=False,
-        margin=dict(l=40, r=20, b=10, t=10),
+        # ZWIĘKSZONO MARGINES DOLNY (b) z 10 na 40, aby etykiety się mieściły
+        margin=dict(l=40, r=20, b=40, t=10),
         xaxis=dict(title=None, gridcolor="rgba(149, 112, 255, 0.2)"),
         yaxis=dict(
             title=None, gridcolor="rgba(149, 112, 255, 0.2)", zerolinecolor="#9570FF", range=[0, 1.1]
@@ -370,7 +374,8 @@ app.layout = html.Div(
                                 "position": "relative",
                                 "display": "flex",
                                 "flexDirection": "column",
-                                "padding": "10px"
+                                "padding": "10px",
+                                "gap": "15px" # DODANO ODSTĘP między wykresem a suwakami
                             },
                             children=[
                                 # WYKRES (Góra)
@@ -405,7 +410,7 @@ app.layout = html.Div(
                                     },
                                     children=[
                                         html.Div([
-                                            html.Label("Cel Arousal (A)", style={"color": COLORS["accent"], "fontWeight": "bold", "fontSize": "11px"}),
+                                            html.Label("Target Arousal (A)", style={"color": COLORS["accent"], "fontWeight": "bold", "fontSize": "11px"}),
                                             dcc.Slider(
                                                 id="slider-arousal",
                                                 min=0, max=1, step=0.05, value=0.5,
@@ -414,7 +419,7 @@ app.layout = html.Div(
                                             )
                                         ]),
                                         html.Div([
-                                            html.Label("Cel Valence (V)", style={"color": COLORS["accent"], "fontWeight": "bold", "fontSize": "11px"}),
+                                            html.Label("Target Valence (V)", style={"color": COLORS["accent"], "fontWeight": "bold", "fontSize": "11px"}),
                                             dcc.Slider(
                                                 id="slider-valence",
                                                 min=0, max=1, step=0.05, value=0.5,
@@ -424,7 +429,7 @@ app.layout = html.Div(
                                         ]),
                                         # NOWY TRZECI SLIDER
                                         html.Div([
-                                            html.Label("Cel Dominance (D)", style={"color": COLORS["accent"], "fontWeight": "bold", "fontSize": "11px"}),
+                                            html.Label("Target Dominance (D)", style={"color": COLORS["accent"], "fontWeight": "bold", "fontSize": "11px"}),
                                             dcc.Slider(
                                                 id="slider-dominance",
                                                 min=0, max=1, step=0.05, value=0.5,
@@ -434,7 +439,7 @@ app.layout = html.Div(
                                         ]),
                                         # GUZIK
                                         html.Button(
-                                            "Generuj ścieżkę do celu",
+                                            "Generate Target Emotion Path",
                                             id="btn-start-path",
                                             style={
                                                 "background": COLORS["primary"],
