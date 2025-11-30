@@ -84,17 +84,21 @@ def create_3d_figure(df):
                 "Safe",
                 "Satisfied",
                 "Surprised",
-                "Happy",
+                # "Happy",
                 "Sad",
-                "Unbother",
+                "Unbothered",
                 "Scared",
                 "Angry",
             ],
-            "valence": [0.75, 0.75, 0.75, 0.75, 0.25, 0.25, 0.25, 0.25],
-            "arousal": [0.25, 0.25, 0.75, 0.75, 0.25, 0.25, 0.75, 0.75],
-            "dominance": [0.25, 0.75, 0.25, 0.75, 0.25, 0.75, 0.25, 0.75],
+            "valence": [0.75, 0.75, 0.75, 0.75, 0.25, 0.25, 0.25],
+            "arousal": [0.25, 0.25, 0.75, 0.75, 0.25, 0.75, 0.75],
+            "dominance": [0.25, 0.75, 0.25, 0.75, 0.75, 0.25, 0.75],
         }
     )
+
+    df_reference["valence"] += 0.25
+    df_reference["arousal"] += 0.25
+    df_reference["dominance"] += 0.25
 
     fig.add_trace(
         go.Scatter3d(
@@ -104,6 +108,7 @@ def create_3d_figure(df):
             mode="markers+text",
             text=df_reference["name"],
             textposition="top center",
+            textfont=dict(color="yellow", size=20),
             marker=dict(
                 size=6,
                 color="white",
