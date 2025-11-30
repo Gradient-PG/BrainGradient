@@ -23,8 +23,6 @@ COLORS = {
 }
 
 # --- FUNKCJE LOGIKI ---
-# (Identyczne jak w Twoim kodzie bazowym, tylko z poprawionymi kolorami wykresów)
-
 
 def create_3d_figure(df):
     fig = px.scatter_3d(
@@ -35,33 +33,25 @@ def create_3d_figure(df):
         size="distance",
         color="distance",
         opacity=0.8,
-        # color_continuous_scale=[
-        #     [0, COLORS["background"]],
-        #     [0.5, COLORS["primary"]],
-        #     [1, COLORS["accent"]],
-        # ],
     )
     fig.update_traces(marker=dict(line=dict(width=0)))
     fig.update_traces(
         marker=dict(symbol="diamond"),
-        # selector=dict(mode="`markers"),
     )
 
     fig.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",  # Przezroczyste tło całego canvasu
-        plot_bgcolor="rgba(0,0,0,0)",  # Przezroczyste tło wykresu
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
         coloraxis_showscale=False,
         margin=dict(l=0, r=0, b=0, t=0),
         scene=dict(
-            #             "arousal"
-            # "valence"
-            # "dominance"
             xaxis=dict(
                 title=dict(text="Arousal"),
                 backgroundcolor="rgba(0,0,0,0)",
                 gridcolor=COLORS["primary"],
                 showbackground=False,
                 title_font=dict(color=COLORS["accent"], size=40),
+                range=[0, 1],
             ),
             yaxis=dict(
                 title=dict(text="Valence"),
@@ -69,6 +59,7 @@ def create_3d_figure(df):
                 gridcolor=COLORS["primary"],
                 showbackground=False,
                 title_font=dict(color=COLORS["accent"], size=40),
+                range=[0, 1],
             ),
             zaxis=dict(
                 title=dict(text="Dominance"),
@@ -76,6 +67,7 @@ def create_3d_figure(df):
                 gridcolor=COLORS["primary"],
                 showbackground=False,
                 title_font=dict(color=COLORS["accent"], size=40),
+                range=[0, 1],
             ),
         ),
     )
@@ -125,7 +117,6 @@ def create_3d_figure(df):
 
 
 def create_barplot_figure(data_dict: dict):
-    # Mapa kolorów dla słupków
     color_map = {
         "arousal": "#9570FF",  # Jasny fiolet
         "valence": "#E5BB54",  # Żółty
@@ -139,16 +130,15 @@ def create_barplot_figure(data_dict: dict):
         color_discrete_map=color_map,
     )
 
-    # KLUCZOWE: Ciemny motyw dla wykresu 2D
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#E0E0E0"),  # Jasna czcionka
+        font=dict(color="#E0E0E0"),
         showlegend=False,
-        margin=dict(l=40, r=20, b=30, t=20),
+        margin=dict(l=40, r=20, b=10, t=10), # Zmniejszone marginesy
         xaxis=dict(title=None, gridcolor="rgba(149, 112, 255, 0.2)"),
         yaxis=dict(
-            title=None, gridcolor="rgba(149, 112, 255, 0.2)", zerolinecolor="#9570FF"
+            title=None, gridcolor="rgba(149, 112, 255, 0.2)", zerolinecolor="#9570FF", range=[0, 1.1]
         ),
     )
     return fig
@@ -200,7 +190,6 @@ global_target_history = []
 app = Dash(__name__)
 server = app.server
 
-# Ścieżka do obrazka
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 IMAGE_PATH = "NewDataset/Astronaut 1.jpg"
 FULL_PATH = os.path.join(BASE_DIR, IMAGE_PATH)
@@ -223,9 +212,9 @@ MODAL_STYLE = {
     "left": 0,
     "width": "100vw",
     "height": "100vh",
-    "backgroundColor": "rgba(31, 0, 52, 0.95)",  # Ciemny fiolet, lekko przeźroczysty
+    "backgroundColor": "rgba(31, 0, 52, 0.95)",
     "zIndex": 9999,
-    "display": "none",  # Domyślnie ukryty
+    "display": "none",
     "justifyContent": "center",
     "alignItems": "center",
     "flexDirection": "column",
@@ -244,9 +233,8 @@ app.layout = html.Div(
         "flexDirection": "column",
     },
     children=[
-        # --- MECHANIZM PROGRAMOWEGO ODPALANIA ---
         dcc.Store(id="modal-store", data={"open": False}),
-        # 1. MODAL (Warstwa wierzchnia)
+        # 1. MODAL
         html.Div(
             id="modal-container",
             style=MODAL_STYLE,
@@ -263,22 +251,21 @@ app.layout = html.Div(
                     },
                 ),
                 html.Img(
-                    id="modal-image",  # ID potrzebne do zamykania po kliknięciu
+                    id="modal-image",
                     src=IMG_SRC,
-                    # ZMIANA: Wymuszamy duży rozmiar (height/width zamiast max-)
                     style={
-                        "height": "85vh",  # Wymuszona wysokość
-                        "width": "85vw",  # Wymuszona szerokość
-                        "minHeight": "600px",  # Minimalna wysokość (żeby nie było za małe)
-                        "minWidth": "800px",  # Minimalna szerokość
-                        "objectFit": "contain",  # Zachowaj proporcje, ale wypełnij ramkę
+                        "height": "85vh",
+                        "width": "85vw",
+                        "minHeight": "600px",
+                        "minWidth": "800px",
+                        "objectFit": "contain",
                         "zIndex": 10000,
                         "position": "relative",
                         "border": f"2px solid {COLORS['accent']}",
                         "borderRadius": "12px",
                         "boxShadow": "0 0 40px rgba(229, 187, 84, 0.3)",
                         "cursor": "pointer",
-                        "backgroundColor": "rgba(0,0,0,0.5)",  # Ciemne tło pod samym zdjęciem, jeśli proporcje są inne
+                        "backgroundColor": "rgba(0,0,0,0.5)",
                     },
                 ),
                 html.Div(
@@ -313,7 +300,6 @@ app.layout = html.Div(
                         "marginBottom": "10px",
                     },
                 ),
-                # Przycisk DEMO
                 html.Button(
                     "Test Fullscreen Function",
                     id="btn-trigger-modal",
@@ -365,24 +351,66 @@ app.layout = html.Div(
                         "gap": "20px",
                     },
                     children=[
-                        # Prawa Góra
+                        # Prawa Góra (Wykres + Slidery)
                         html.Div(
                             className="glass-panel",
-                            style={"flex": 1, "position": "relative"},
+                            style={
+                                "flex": 1,
+                                "position": "relative",
+                                "display": "flex",
+                                "flexDirection": "column"
+                            },
                             children=[
-                                dcc.Graph(
-                                    id="history-graph",
-                                    figure=create_barplot_figure(
-                                        {
-                                            key: value
-                                            for key, value in zip(
-                                                ["arousal", "valence", "dominance"],
-                                                global_target,
+                                # Wykres (Górna połowa)
+                                html.Div(
+                                    style={"flex": 1, "width": "100%", "minHeight": "0"},
+                                    children=[
+                                        dcc.Graph(
+                                            id="history-graph",
+                                            figure=create_barplot_figure(
+                                                {
+                                                    key: value
+                                                    for key, value in zip(
+                                                    ["arousal", "valence", "dominance"],
+                                                    global_target,
+                                                )
+                                                }
+                                            ),
+                                            style={"width": "95%", "height": "100%", "margin": "0 auto"},
+                                            config={"responsive": True},
+                                        )
+                                    ]
+                                ),
+                                # Slidery (Dolna połowa - Placeholdery)
+                                html.Div(
+                                    style={
+                                        "flex": 1,
+                                        "padding": "10px 20px",
+                                        "display": "flex",
+                                        "flexDirection": "column",
+                                        "justifyContent": "center",
+                                        "gap": "15px"
+                                    },
+                                    children=[
+                                        html.Div([
+                                            html.Label("Arousal (A)", style={"color": COLORS["accent"], "fontWeight": "bold"}),
+                                            dcc.Slider(
+                                                id="slider-arousal",
+                                                min=0, max=1, step=0.05, value=0.5,
+                                                marks={0: '0', 0.5: '0.5', 1: '1'},
+                                                tooltip={"placement": "bottom", "always_visible": True}
                                             )
-                                        }
-                                    ),
-                                    style={"width": "95%", "height": "100%"},
-                                    config={"responsive": True},
+                                        ]),
+                                        html.Div([
+                                            html.Label("Valence (V)", style={"color": COLORS["accent"], "fontWeight": "bold"}),
+                                            dcc.Slider(
+                                                id="slider-valence",
+                                                min=0, max=1, step=0.05, value=0.5,
+                                                marks={0: '0', 0.5: '0.5', 1: '1'},
+                                                tooltip={"placement": "bottom", "always_visible": True}
+                                            )
+                                        ]),
+                                    ]
                                 )
                             ],
                         ),
@@ -451,8 +479,6 @@ def update_metrics(old_3d_fig, barplot_fig, n_intervals):
     global global_data_aquisition
     global global_target_history
 
-    print("Frontend api tick")
-
     ctx = callback_context
     trigger_id = (
         ctx.triggered[0]["prop_id"].split(".")[0] if ctx.triggered else "No triggers"
@@ -492,8 +518,6 @@ def update_metrics(old_3d_fig, barplot_fig, n_intervals):
         global_vect = update_vector(global_vect, global_target)
         global_df = add_measurement(global_df, global_vect)
 
-    # Create the new figure
-
     old_3d_fig["data"][0]["marker"]["color"] = global_df["distance"].to_numpy()
     old_3d_fig["data"][0]["marker"]["size"] = global_df["distance"].to_numpy() * 10000
 
@@ -530,17 +554,14 @@ def toggle_modal_display(
     new_style = current_style.copy()
     new_store_data = store_data.copy() if store_data else {"open": False}
 
-    # Otwieranie (Klik w miniaturę lub przycisk)
     if trigger_id == "image-trigger" or trigger_id == "btn-trigger-modal":
         new_style["display"] = "flex"
         new_store_data["open"] = True
 
-    # Zamykanie (Klik w tło LUB klik w samo zdjęcie)
     elif trigger_id == "modal-overlay" or trigger_id == "modal-image":
         new_style["display"] = "none"
         new_store_data["open"] = False
 
-    # Reakcja na zewnętrzną zmianę Store
     elif trigger_id == "modal-store":
         if store_data.get("open"):
             new_style["display"] = "flex"
