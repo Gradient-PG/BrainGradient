@@ -243,7 +243,7 @@ app.layout = html.Div(
             "tar_a": 0.5, "tar_v": 0.5, "tar_d": 0.5,
             "step_size": 0.05
         }),
-        dcc.Interval(id="path-ticker", interval=500, disabled=True),
+        dcc.Interval(id="path-ticker", interval=2500, disabled=True),
 
         # 1. MODAL
         html.Div(
