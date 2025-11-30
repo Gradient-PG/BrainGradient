@@ -31,12 +31,17 @@ class DataAcquisition:
         6: "O2",
         7: "O1",
         }
-        alpha = [8,13] 
-        beta = [13,30] 
+        alpha = [8,13]
+        beta = [13,30]
         theta = [4, 8]
         self.bands_freq = [alpha, beta, theta]
         self.run = False
         self.data_queue = queue.Queue()
+
+
+        # data_consumer.join()
+        # data_producer.join()
+
 
     def send_annotate(self):
         with EEGManager() as mgr:
@@ -50,7 +55,7 @@ class DataAcquisition:
             time.sleep(3)
 
             while self.run:
-                print("self.run")
+                # print("self.run")
                 time.sleep(1)
                 self.data = self.eeg.get_mne(tim=1,samples=250)
                 pckg = self.process_mne()
@@ -60,12 +65,12 @@ class DataAcquisition:
 
     def data_consumer(self, pckg_list):
         """ CONSUMER THREAD: Reads data from the Queue """
-        print("Consumer thread started...")
+        print("Checking for more data...")
         while self.run or not self.data_queue.empty():
             try:
                 # 3. Get data from queue (waits up to 1 second for data)
-                pckg = self.data_queue.get(timeout=1) 
-                pckg_list.append(pckg)
+                pckg = self.data_queue.get(timeout=1)
+                pckg_list.append([pckg[dimension] for dimension in ["arousal", "valence", "dominance"]])
                 print(f" [Consumer Thread] Received: {pckg}")
 
                 self.data_queue.task_done()
@@ -83,23 +88,23 @@ class DataAcquisition:
         pckg = self.get_data()
         return pckg
 
-    def stop_recording(self, mgr):    
+    def stop_recording(self, mgr):
         self.run = False
         print("Preparing to plot data")
         time.sleep(2)
         # get all eeg data and stop acquisition
         self.eeg.stop_acquisition()
-        mgr.disconnect()       
+        mgr.disconnect()
         self.eeg.close()
 
     def filter_data(self):
         if self.data is None:
             return
         self.data.notch_filter(50,)
-        print("notch")
+        # print("notch")
         # 2 Hz to 42 Hz
         self.data.filter(2, 42)
-        print("filter")
+        # print("filter")
 
     def get_power_band(self, spectrum:mne.time_frequency.Spectrum, band:list):
         fmin, fmax = band
@@ -119,7 +124,6 @@ class DataAcquisition:
             for val in ch:
                 n+=1
                 band_sum += val
-        print("sum")
         return band_sum / n
 
     def calculate_dominance(self):
@@ -139,32 +143,32 @@ class DataAcquisition:
         stress = 0.5*(xa + xb)
         dominance = -self.calculate_valence() + stress
         return dominance
-    
+
     def calculate_arousal(self):
         if self.data is None:
             return
         _, arousal= self.get_emotion()
         return arousal
-        
+
     def get_emotion(self):
         if self.data is None:
-            return 
-        
+            return
+
         raw_af3 = self.data.copy().pick_channels(['AF3']).get_data()[0]
         raw_f4  = self.data.copy().pick_channels(['AF4']).get_data()[0]
         raw_fc6 = self.data.copy().pick_channels(['F3']).get_data()[0]
         valence,arousal =self.emotion_model.predict_window(raw_af3,raw_f4,raw_fc6)
-        
+
         self._last_valence = valence
         self._last_arousal = arousal
         return valence,arousal
-        
+
     def calculate_valence(self):
         if self.data is None:
-            return 
+            return
         valence, _ = self.get_emotion()
         return valence
-        
+
     def mne2pd(self):
         return self.data.to_data_frame()
 
@@ -173,21 +177,12 @@ class DataAcquisition:
         pckg["valence"] = self.calculate_valence()
         pckg["arousal"] = self.calculate_arousal()
         pckg["dominance"] = self.calculate_dominance()
-        print(pckg)
+        print(f"Received data {pckg}")
         return pckg
+
 
 
 if __name__ == "__main__":
     data_ac = DataAcquisition()
-    
+
     # packages
-    pckg_list = []
-
-    data_producer = threading.Thread(target=data_ac.send_annotate, daemon=True)
-    data_consumer = threading.Thread(target=data_ac.data_consumer, args=(pckg_list,), daemon=True)
-    
-    data_producer.start()
-    data_consumer.start()
-
-    data_consumer.join()
-    data_producer.join()
