@@ -19,7 +19,6 @@ class DataAcquisition:
         self.device_name = "BA MINI 045"
         self.eeg = acquisition.EEG()
         self.mgr = EEGManager()
-        # self.mgr.connect(self.device_name)
         self.data : mne.io.Raw = None
         self.halo: dict = {
         0: "AF3",
@@ -31,9 +30,10 @@ class DataAcquisition:
         6: "O2",
         7: "O1",
         }
-        alpha = [7,14] # Alpha:   8   – 13  Hz   → Relaxed wakefulness, calm focus
-        beta = [14,30] # Beta:    13  – 30  Hz   → Active thinking, alertness, problem-solving
-        self.bands_freq = [alpha, beta]
+        alpha = [8,13] 
+        beta = [13,30] 
+        theta = [4, 8]
+        self.bands_freq = [alpha, beta, theta]
         self.run = False
 
     def send_annotate(self):
@@ -113,11 +113,19 @@ class DataAcquisition:
         bands = self.extract_all_power_bands(psd)
         alpha = bands[0]
         beta = bands[1]
+        theta = bands[2]
 
-        a_sum = self.sum_channels(alpha[0])
-        b_sum = self.sum_channels(beta[0])
-        dominance = (a_sum + b_sum) / 2
-        print("dominance")
+        a_avg = self.sum_channels(alpha[0])
+        b_avg = self.sum_channels(beta[0])
+        t_avg = self.sum_channels(theta[0])
+        xa = a_avg/b_avg
+        xb = t_avg/b_avg
+        stress = 0.5*(xa + xb)
+        dominance = -self.calculate_valence() + stress
+
+        
+        # dominance = (a_sum + b_sum) / 2
+        # print("dominance")
         return dominance
     
     def calculate_arousal(self):
