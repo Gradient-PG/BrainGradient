@@ -181,7 +181,7 @@ def get_clean_vect():
 # --- STAN GLOBALNY ---
 global_df = get_clean_live_df()
 global_vect = get_clean_vect()
-global_target = np.array([1, 1, 0])
+global_target = np.array([0.5, 0.5, 0.5])
 global_now = time.time()
 global_data_aquisition = DataAcquisition()
 global_target_history = []
