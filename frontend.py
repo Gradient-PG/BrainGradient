@@ -564,7 +564,7 @@ app.layout = html.Div(
                 ),
             ],
         ),
-        dcc.Interval(id="interval-component", interval=100, n_intervals=0),
+        dcc.Interval(id="interval-component", interval=200, n_intervals=0),
     ],
 )
 
