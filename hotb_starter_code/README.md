@@ -40,7 +40,7 @@ pip install brainaccess
 
 3. Test connectivity by running `test.py` scirpt with appropriate `device_name` and `electrode_locations`.
 ```bash
-python test.py
+python test_imgs.py
 ```
 
 ## 3. Connection on Linux
@@ -67,7 +67,7 @@ pip install ./BrainAccessSDK-linux/python_api
 3. Test connectivity by running `test.py` scirpt with appropriate `device_name` and `electrode_locations`.
 
 ```bash
-python3 test.py
+python3 test_imgs.py
 ```
 
 ## 4. How to find device's name?

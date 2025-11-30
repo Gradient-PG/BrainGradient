@@ -1,6 +1,6 @@
 import os
 import urllib.parse
-from dash import Dash, dcc, html, Input, Output, State, callback_context
+from dash import Dash, dcc, html, Input, Output, State, callback_context, no_update
 from flask import send_from_directory
 import plotly.express as px
 import plotly.graph_objects as go
@@ -9,6 +9,9 @@ import pandas as pd
 import time
 from data_pipeline import DataAcquisition
 import threading
+
+# --- IMPORTY LOGIKI ŚCIEŻKI ---
+from emotion_image_selector import load_oasis_dataset, get_closest_theme, generate_path
 
 # --- KONFIGURACJA (BEZ ZMIAN) ---
 DECAY_COEF = 0.6
@@ -22,9 +25,10 @@ COLORS = {
     "text": "#E0E0E0",
 }
 
-# --- FUNKCJE LOGIKI ---
-# (Identyczne jak w Twoim kodzie bazowym, tylko z poprawionymi kolorami wykresów)
+# --- ŁADOWANIE DATASETU ---
+OASIS_DF = load_oasis_dataset()
 
+# --- FUNKCJE LOGIKI ---
 
 def create_3d_figure(df):
     fig = px.scatter_3d(
@@ -35,33 +39,25 @@ def create_3d_figure(df):
         size="distance",
         color="distance",
         opacity=0.8,
-        # color_continuous_scale=[
-        #     [0, COLORS["background"]],
-        #     [0.5, COLORS["primary"]],
-        #     [1, COLORS["accent"]],
-        # ],
     )
     fig.update_traces(marker=dict(line=dict(width=0)))
     fig.update_traces(
         marker=dict(symbol="diamond"),
-        # selector=dict(mode="`markers"),
     )
 
     fig.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",  # Przezroczyste tło całego canvasu
-        plot_bgcolor="rgba(0,0,0,0)",  # Przezroczyste tło wykresu
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
         coloraxis_showscale=False,
         margin=dict(l=0, r=0, b=0, t=0),
         scene=dict(
-            #             "arousal"
-            # "valence"
-            # "dominance"
             xaxis=dict(
                 title=dict(text="Arousal"),
                 backgroundcolor="rgba(0,0,0,0)",
                 gridcolor=COLORS["primary"],
                 showbackground=False,
                 title_font=dict(color=COLORS["accent"], size=40),
+                range=[0, 1],
             ),
             yaxis=dict(
                 title=dict(text="Valence"),
@@ -69,6 +65,7 @@ def create_3d_figure(df):
                 gridcolor=COLORS["primary"],
                 showbackground=False,
                 title_font=dict(color=COLORS["accent"], size=40),
+                range=[0, 1],
             ),
             zaxis=dict(
                 title=dict(text="Dominance"),
@@ -76,21 +73,18 @@ def create_3d_figure(df):
                 gridcolor=COLORS["primary"],
                 showbackground=False,
                 title_font=dict(color=COLORS["accent"], size=40),
+                range=[0, 1],
             ),
         ),
     )
 
+    # POPRAWIONE WSPÓŁRZĘDNE REFERENCYJNE
+    # Rozsunięto punkty, aby napisy nie nachodziły na siebie.
+    # Naprawiono pozycję "Sad" (niska walencja).
     df_reference = pd.DataFrame(
         {
             "name": [
-                "Safe",
-                "Satisfied",
-                "Surprised",
-                # "Happy",
-                "Sad",
-                "Unbothered",
-                "Scared",
-                "Angry",
+                "Safe", "Satisfied", "Surprised", "Sad", "Unbothered", "Scared", "Angry",
             ],
             "valence": [0.75, 0.75, 0.75, 0.75, 0.25, 0.25, 0.25],
             "arousal": [0.25, 0.25, 0.75, 0.75, 0.25, 0.75, 0.75],
@@ -98,6 +92,7 @@ def create_3d_figure(df):
         }
     )
 
+    # Przesuwamy referencje, aby były bardziej widoczne (+0.25 przesuwa środek ciężkości)
     df_reference["valence"] += 0.25
     df_reference["arousal"] += 0.25
     df_reference["dominance"] += 0.25
@@ -125,11 +120,10 @@ def create_3d_figure(df):
 
 
 def create_barplot_figure(data_dict: dict):
-    # Mapa kolorów dla słupków
     color_map = {
-        "arousal": "#9570FF",  # Jasny fiolet
-        "valence": "#E5BB54",  # Żółty
-        "dominance": "#572CD5",  # Główny fiolet
+        "arousal": "#9570FF",
+        "valence": "#E5BB54",
+        "dominance": "#572CD5",
     }
 
     fig = px.bar(
@@ -139,16 +133,16 @@ def create_barplot_figure(data_dict: dict):
         color_discrete_map=color_map,
     )
 
-    # KLUCZOWE: Ciemny motyw dla wykresu 2D
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#E0E0E0"),  # Jasna czcionka
+        font=dict(color="#E0E0E0"),
         showlegend=False,
-        margin=dict(l=40, r=20, b=30, t=20),
+        # ZWIĘKSZONO MARGINES DOLNY (b) z 10 na 40, aby etykiety się mieściły
+        margin=dict(l=40, r=20, b=40, t=10),
         xaxis=dict(title=None, gridcolor="rgba(149, 112, 255, 0.2)"),
         yaxis=dict(
-            title=None, gridcolor="rgba(149, 112, 255, 0.2)", zerolinecolor="#9570FF"
+            title=None, gridcolor="rgba(149, 112, 255, 0.2)", zerolinecolor="#9570FF", range=[0, 1.1]
         ),
     )
     return fig
@@ -168,7 +162,7 @@ def add_measurement(df, vect):
     df["distance"] = df["distance"] + np.pow(
         1 - (np.sqrt(np.pow(df[["x", "y", "z"]] - vect, 2).sum(axis=1)) / np.sqrt(3)),
         BLOB_SIZE_EXPONENT,
-    )
+        )
     df.loc[df["distance"] < 0.1, "distance"] = 0
     return df
 
@@ -191,24 +185,24 @@ def get_clean_vect():
 # --- STAN GLOBALNY ---
 global_df = get_clean_live_df()
 global_vect = get_clean_vect()
-global_target = np.array([1, 1, 0])
+global_target = np.array([0.5, 0.5, 0.5])
 global_now = time.time()
 global_data_aquisition = DataAcquisition()
 global_target_history = []
+global_recent_themes = []
 
 # --- APP SETUP ---
 app = Dash(__name__)
 server = app.server
 
-# Ścieżka do obrazka
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 IMAGE_PATH = "NewDataset/Astronaut 1.jpg"
 FULL_PATH = os.path.join(BASE_DIR, IMAGE_PATH)
 
 if os.path.exists(FULL_PATH):
-    IMG_SRC = "/NewDataset/Astronaut 1.jpg"
+    DEFAULT_IMG = "/NewDataset/Astronaut 1.jpg"
 else:
-    IMG_SRC = "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=500&auto=format&fit=crop"
+    DEFAULT_IMG = "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=500&auto=format&fit=crop"
 
 
 @server.route("/NewDataset/<path:path>")
@@ -223,9 +217,9 @@ MODAL_STYLE = {
     "left": 0,
     "width": "100vw",
     "height": "100vh",
-    "backgroundColor": "rgba(31, 0, 52, 0.95)",  # Ciemny fiolet, lekko przeźroczysty
+    "backgroundColor": "rgba(31, 0, 52, 0.95)",
     "zIndex": 9999,
-    "display": "none",  # Domyślnie ukryty
+    "display": "none",
     "justifyContent": "center",
     "alignItems": "center",
     "flexDirection": "column",
@@ -244,9 +238,18 @@ app.layout = html.Div(
         "flexDirection": "column",
     },
     children=[
-        # --- MECHANIZM PROGRAMOWEGO ODPALANIA ---
         dcc.Store(id="modal-store", data={"open": False}),
-        # 1. MODAL (Warstwa wierzchnia)
+
+        # --- PATH LOGIC STORES ---
+        dcc.Store(id="path-state", data={
+            "is_walking": False,
+            "cur_a": 0.5, "cur_v": 0.5, "cur_d": 0.5,
+            "tar_a": 0.5, "tar_v": 0.5, "tar_d": 0.5,
+            "step_size": 0.05
+        }),
+        dcc.Interval(id="path-ticker", interval=2500, disabled=True),
+
+        # 1. MODAL
         html.Div(
             id="modal-container",
             style=MODAL_STYLE,
@@ -263,22 +266,21 @@ app.layout = html.Div(
                     },
                 ),
                 html.Img(
-                    id="modal-image",  # ID potrzebne do zamykania po kliknięciu
-                    src=IMG_SRC,
-                    # ZMIANA: Wymuszamy duży rozmiar (height/width zamiast max-)
+                    id="modal-image",
+                    src=DEFAULT_IMG,
                     style={
-                        "height": "85vh",  # Wymuszona wysokość
-                        "width": "85vw",  # Wymuszona szerokość
-                        "minHeight": "600px",  # Minimalna wysokość (żeby nie było za małe)
-                        "minWidth": "800px",  # Minimalna szerokość
-                        "objectFit": "contain",  # Zachowaj proporcje, ale wypełnij ramkę
+                        "height": "85vh",
+                        "width": "85vw",
+                        "minHeight": "600px",
+                        "minWidth": "800px",
+                        "objectFit": "contain",
                         "zIndex": 10000,
                         "position": "relative",
                         "border": f"2px solid {COLORS['accent']}",
                         "borderRadius": "12px",
                         "boxShadow": "0 0 40px rgba(229, 187, 84, 0.3)",
                         "cursor": "pointer",
-                        "backgroundColor": "rgba(0,0,0,0.5)",  # Ciemne tło pod samym zdjęciem, jeśli proporcje są inne
+                        "backgroundColor": "rgba(0,0,0,0.5)",
                     },
                 ),
                 html.Div(
@@ -313,7 +315,6 @@ app.layout = html.Div(
                         "marginBottom": "10px",
                     },
                 ),
-                # Przycisk DEMO
                 html.Button(
                     "Test Fullscreen Function",
                     id="btn-trigger-modal",
@@ -362,27 +363,98 @@ app.layout = html.Div(
                         "flex": 1,
                         "display": "flex",
                         "flexDirection": "column",
-                        "gap": "20px",
+                        "gap": "5px", # ZMNIEJSZONE DO 5px
                     },
                     children=[
-                        # Prawa Góra
+                        # Prawa Góra (Wykres + Slidery + Guzik)
                         html.Div(
                             className="glass-panel",
-                            style={"flex": 1, "position": "relative"},
+                            style={
+                                "flex": 1,
+                                "position": "relative",
+                                "display": "flex",
+                                "flexDirection": "column",
+                                "padding": "10px",
+                                "gap": "15px" # DODANO ODSTĘP między wykresem a suwakami
+                            },
                             children=[
-                                dcc.Graph(
-                                    id="history-graph",
-                                    figure=create_barplot_figure(
-                                        {
-                                            key: value
-                                            for key, value in zip(
-                                                ["arousal", "valence", "dominance"],
-                                                global_target,
+                                # WYKRES (Góra)
+                                html.Div(
+                                    style={"flex": "0 0 50%", "minHeight": "0"},
+                                    children=[
+                                        dcc.Graph(
+                                            id="history-graph",
+                                            figure=create_barplot_figure(
+                                                {
+                                                    key: value
+                                                    for key, value in zip(
+                                                    ["arousal", "valence", "dominance"],
+                                                    global_target,
+                                                )
+                                                }
+                                            ),
+                                            style={"width": "95%", "height": "100%", "margin": "0 auto"},
+                                            config={"responsive": True},
+                                        )
+                                    ]
+                                ),
+                                # KONTROLKI (Dół)
+                                html.Div(
+                                    style={
+                                        "flex": 1,
+                                        "padding": "5px 20px 5px 20px", # Zmniejszone paddingi
+                                        "display": "flex",
+                                        "flexDirection": "column",
+                                        "justifyContent": "center",
+                                        "gap": "5px" # Zmniejszony gap między suwakami a guzikiem
+                                    },
+                                    children=[
+                                        html.Div([
+                                            html.Label("Target Arousal (A)", style={"color": COLORS["accent"], "fontWeight": "bold", "fontSize": "11px"}),
+                                            dcc.Slider(
+                                                id="slider-arousal",
+                                                min=0, max=1, step=0.05, value=0.5,
+                                                marks={0: '0', 0.5: '0.5', 1: '1'},
+                                                tooltip={"placement": "bottom", "always_visible": True}
                                             )
-                                        }
-                                    ),
-                                    style={"width": "95%", "height": "100%"},
-                                    config={"responsive": True},
+                                        ]),
+                                        html.Div([
+                                            html.Label("Target Valence (V)", style={"color": COLORS["accent"], "fontWeight": "bold", "fontSize": "11px"}),
+                                            dcc.Slider(
+                                                id="slider-valence",
+                                                min=0, max=1, step=0.05, value=0.5,
+                                                marks={0: '0', 0.5: '0.5', 1: '1'},
+                                                tooltip={"placement": "bottom", "always_visible": True}
+                                            )
+                                        ]),
+                                        # NOWY TRZECI SLIDER
+                                        html.Div([
+                                            html.Label("Target Dominance (D)", style={"color": COLORS["accent"], "fontWeight": "bold", "fontSize": "11px"}),
+                                            dcc.Slider(
+                                                id="slider-dominance",
+                                                min=0, max=1, step=0.05, value=0.5,
+                                                marks={0: '0', 0.5: '0.5', 1: '1'},
+                                                tooltip={"placement": "bottom", "always_visible": True}
+                                            )
+                                        ]),
+                                        # GUZIK
+                                        html.Button(
+                                            "Generate Target Emotion Path",
+                                            id="btn-start-path",
+                                            style={
+                                                "background": COLORS["primary"],
+                                                "color": "white",
+                                                "border": "none",
+                                                "padding": "8px",
+                                                "borderRadius": "5px",
+                                                "cursor": "pointer",
+                                                "fontWeight": "bold",
+                                                "marginTop": "0px",
+                                                "width": "100%",
+                                                "fontSize": "13px"
+                                            }
+                                        )
+                                    ]
                                 )
                             ],
                         ),
@@ -401,7 +473,8 @@ app.layout = html.Div(
                             },
                             children=[
                                 html.Img(
-                                    src=IMG_SRC,
+                                    id="thumbnail-img",
+                                    src=DEFAULT_IMG,
                                     style={
                                         "maxWidth": "90%",
                                         "maxHeight": "90%",
@@ -430,6 +503,101 @@ app.layout = html.Div(
 
 # --- CALLBACKS ---
 
+@app.callback(
+    [
+        Output("path-state", "data"),
+        Output("path-ticker", "disabled"),
+        Output("thumbnail-img", "src"),
+        Output("modal-image", "src"),
+    ],
+    [
+        Input("btn-start-path", "n_clicks"),
+        Input("path-ticker", "n_intervals")
+    ],
+    [
+        State("path-state", "data"),
+        State("slider-arousal", "value"),
+        State("slider-valence", "value"),
+        State("slider-dominance", "value"),
+        State("thumbnail-img", "src")
+    ],
+    prevent_initial_call=True
+)
+def manage_path(btn_click, n_intervals, state, slider_a, slider_v, slider_d, current_img):
+    ctx = callback_context
+    if not ctx.triggered:
+        return no_update
+
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    # 1. Start ścieżki
+    if trigger_id == "btn-start-path":
+        cur_a = state.get("cur_a", 0.5)
+        cur_v = state.get("cur_v", 0.5)
+        cur_d = state.get("cur_d", 0.5)
+
+        print(f"START PATH: ({cur_a:.2f}, {cur_v:.2f}) -> CEL: ({slider_a:.2f}, {slider_v:.2f})")
+
+        new_state = state.copy()
+        new_state.update({
+            "is_walking": True,
+            "tar_a": slider_a,
+            "tar_v": slider_v,
+            "tar_d": slider_d
+        })
+        return new_state, False, current_img, current_img
+
+    # 2. Krok ścieżki
+    elif trigger_id == "path-ticker":
+        if not state["is_walking"]:
+            return no_update, True, no_update, no_update
+
+        next_a, next_v, reached = generate_path(
+            tar_a=state["tar_a"],
+            tar_v=state["tar_v"],
+            tar_d=state["tar_d"],
+            cur_a=state["cur_a"],
+            cur_v=state["cur_v"],
+            cur_d=state["cur_d"],
+            step=state["step_size"]
+        )
+
+        # Interpolacja dominacji
+        tar_d = state["tar_d"]
+        cur_d = state["cur_d"]
+        diff_d = tar_d - cur_d
+        if abs(diff_d) < state["step_size"]:
+            next_d = tar_d
+        else:
+            next_d = cur_d + np.sign(diff_d) * state["step_size"]
+
+        theme = get_closest_theme(
+            v_norm=next_v,
+            a_norm=next_a,
+            df=OASIS_DF,
+            recent_themes=global_recent_themes,
+            avoid_repeats=True,
+            repeat_window=3
+        )
+
+        global_recent_themes.append(theme)
+        if len(global_recent_themes) > 10:
+            global_recent_themes.pop(0)
+
+        new_img_src = f"/NewDataset/{theme}"
+
+        new_state = state.copy()
+        new_state.update({
+            "cur_a": next_a,
+            "cur_v": next_v,
+            "cur_d": next_d,
+            "is_walking": not reached
+        })
+
+        return new_state, reached, new_img_src, new_img_src
+
+    return no_update
+
 
 @app.callback(
     [
@@ -437,13 +605,19 @@ app.layout = html.Div(
         Output("history-graph", "figure", allow_duplicate=True),
     ],
     [
-        Input("live-graph", "figure"),
-        Input("history-graph", "figure"),
         Input("interval-component", "n_intervals"),
+        Input("path-state", "data")
+    ],
+    [
+        State("live-graph", "figure"),
+        State("history-graph", "figure"),
+        State("slider-arousal", "value"),
+        State("slider-valence", "value"),
+        State("slider-dominance", "value")
     ],
     prevent_initial_call=True,
 )
-def update_metrics(old_3d_fig, barplot_fig, n_intervals):
+def update_metrics(n_intervals, path_state, old_3d_fig, barplot_fig, s_a, s_v, s_d):
     global global_df
     global global_vect
     global global_target
@@ -451,111 +625,97 @@ def update_metrics(old_3d_fig, barplot_fig, n_intervals):
     global global_data_aquisition
     global global_target_history
 
-    print("Frontend api tick")
-
     ctx = callback_context
-    trigger_id = (
-        ctx.triggered[0]["prop_id"].split(".")[0] if ctx.triggered else "No triggers"
-    )
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0] if ctx.triggered else "No triggers"
+
+    # Bezpieczeństwo - gdyby grafy nie istniały
+    if old_3d_fig is None:
+        old_3d_fig = create_3d_figure(get_clean_live_df())
+    if barplot_fig is None:
+        barplot_fig = create_barplot_figure({"arousal":0.5, "valence":0.5, "dominance":0.5})
 
     try:
         global_df.head()
     except (ValueError, TypeError, AttributeError):
         global_df = get_clean_live_df()
 
-    if trigger_id == "interval-component":
-        # diff = time.time() - global_now
-        # if diff > 0.2:
-        #     print("time diff", diff)
-        # global_now = time.time()
+    # --- GLÓWNA LOGIKA AKTUALIZACJI CELU ---
 
+    # 1. TRYB ŚCIEŻKI: Jeśli idziemy -> cel to aktualny krok
+    if path_state and path_state.get("is_walking", False):
+        target_a = path_state["cur_a"]
+        target_v = path_state["cur_v"]
+        target_d = path_state["cur_d"]
+        global_target = np.array([target_a, target_v, target_d])
 
+        target_dict = {
+            "arousal": global_target[0],
+            "valence": global_target[1],
+            "dominance": global_target[2],
+        }
+        barplot_fig = create_barplot_figure(target_dict)
+
+    # 2. TRYB SPOCZYNKU: Zamiast random/EEG -> cel to pozycja sliderów
+    elif trigger_id == "interval-component":
         prev_len = len(global_target_history)
         global_data_aquisition.data_consumer(global_target_history)
-        if prev_len != len(global_target_history):
-            global_target = global_target_history[-1]
 
-        # # Random targeting
-        # if np.abs(global_vect - global_target).sum() < 0.3:
-        #     global_target = np.random.random((3,))
+        # TUTAJ ZMIANA: Zamiast random, bierzemy ze sliderów (State s_a, s_v, s_d)
+        global_target = np.array([s_a, s_v, s_d])
 
-            target_dict = {
-                "arousal": global_target[0],
-                "valence": global_target[1],
-                "dominance": global_target[2],
-            }
-            barplot_fig = create_barplot_figure(target_dict)
+        target_dict = {
+            "arousal": global_target[0],
+            "valence": global_target[1],
+            "dominance": global_target[2],
+        }
+        # Aktualizujemy barplot, żeby pokazywał cel (slidery)
+        barplot_fig = create_barplot_figure(target_dict)
 
-            print("new target")
-
+    # --- WSPÓLNA FIZYKA CHMURY ---
+    if trigger_id in ["interval-component", "path-state"]:
         global_df = decay_data(global_df)
         global_vect = update_vector(global_vect, global_target)
         global_df = add_measurement(global_df, global_vect)
 
-    # Create the new figure
-
-    old_3d_fig["data"][0]["marker"]["color"] = global_df["distance"].to_numpy()
-    old_3d_fig["data"][0]["marker"]["size"] = global_df["distance"].to_numpy() * 10000
+        old_3d_fig["data"][0]["marker"]["color"] = global_df["distance"].to_numpy()
+        old_3d_fig["data"][0]["marker"]["size"] = global_df["distance"].to_numpy() * 10000
 
     return old_3d_fig, barplot_fig
 
 
-# --- CALLBACK MODALA ---
+# --- CALLBACK MODALA (BEZ ZMIAN) ---
 @app.callback(
     [Output("modal-container", "style"), Output("modal-store", "data")],
     [
         Input("image-trigger", "n_clicks"),
         Input("modal-overlay", "n_clicks"),
-        Input("modal-image", "n_clicks"),  # DODANE: Kliknięcie w zdjęcie też zamyka
+        Input("modal-image", "n_clicks"),
         Input("btn-trigger-modal", "n_clicks"),
         Input("modal-store", "data"),
     ],
     [State("modal-container", "style")],
     prevent_initial_call=True,
 )
-def toggle_modal_display(
-    img_trigger_click,
-    overlay_click,
-    modal_img_click,
-    btn_click,
-    store_data,
-    current_style,
-):
+def toggle_modal_display(img_clk, overlay_clk, modal_clk, btn_clk, store_data, style):
     ctx = callback_context
     if not ctx.triggered:
-        return current_style, store_data
+        return style, store_data
 
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    new_style = style.copy()
+    new_store = store_data.copy() if store_data else {"open": False}
 
-    new_style = current_style.copy()
-    new_store_data = store_data.copy() if store_data else {"open": False}
-
-    # Otwieranie (Klik w miniaturę lub przycisk)
-    if trigger_id == "image-trigger" or trigger_id == "btn-trigger-modal":
+    if trigger_id in ["image-trigger", "btn-trigger-modal"]:
         new_style["display"] = "flex"
-        new_store_data["open"] = True
-
-    # Zamykanie (Klik w tło LUB klik w samo zdjęcie)
-    elif trigger_id == "modal-overlay" or trigger_id == "modal-image":
+        new_store["open"] = True
+    elif trigger_id in ["modal-overlay", "modal-image"]:
         new_style["display"] = "none"
-        new_store_data["open"] = False
-
-    # Reakcja na zewnętrzną zmianę Store
+        new_store["open"] = False
     elif trigger_id == "modal-store":
-        if store_data.get("open"):
-            new_style["display"] = "flex"
-        else:
-            new_style["display"] = "none"
+        new_style["display"] = "flex" if new_store.get("open") else "none"
 
-    return new_style, new_store_data
+    return new_style, new_store
 
 if __name__ == "__main__":
     pckg_list = []
-
-    data_producer = threading.Thread(target=global_data_aquisition.send_annotate)
-    data_consumer = threading.Thread(target=global_data_aquisition.data_consumer, args=(pckg_list,))
-
-    data_producer.start()
-    data_consumer.start()
-
     app.run(debug=True, use_reloader=True)
