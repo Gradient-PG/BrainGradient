@@ -9,6 +9,7 @@ import pandas as pd
 import time
 import threading
 import pickle
+from flask import Flask, request
 
 # --- IMPORTY LOGIKI ŚCIEŻKI ---
 from emotion_image_selector import load_oasis_dataset, get_closest_theme, generate_path
@@ -183,12 +184,14 @@ def add_measurement(df, vect):
 
 
 def get_clean_live_df():
+
+    resolution = 11
     df = (
-        pd.DataFrame(pd.Series(np.arange(11)).rename("x"))
-        .merge(pd.Series(np.arange(11)).rename("y"), how="cross")
-        .merge(pd.Series(np.arange(11)).rename("z"), how="cross")
+        pd.DataFrame(pd.Series(np.arange(resolution)).rename("x"))
+        .merge(pd.Series(np.arange(resolution)).rename("y"), how="cross")
+        .merge(pd.Series(np.arange(resolution)).rename("z"), how="cross")
     )
-    df = df / 10
+    df = df / (resolution - 1)
     df["distance"] = 0
     return df
 
@@ -564,7 +567,7 @@ app.layout = html.Div(
                 ),
             ],
         ),
-        dcc.Interval(id="interval-component", interval=200, n_intervals=0),
+        dcc.Interval(id="interval-component", interval=150, n_intervals=0),
     ],
 )
 
@@ -710,13 +713,13 @@ def update_metrics(n_intervals, path_state, old_3d_fig, barplot_fig):
 
     # global_target = global_data_aquisition.data_queue.g`et(timeout=0.1)
     # global_target_history.append(global_target)
-    with open("tmp.pkl", "rb") as file:
-        global_target = np.array(pickle.load(file))
-        global_target = global_target / max(global_target.max(), 0.00001)
+    # with open("tmp.pkl", "rb") as file:
+    #     global_target = np.array(pickle.load(file))
+    #     global_target = global_target / max(global_target.max(), 0.00001)
 
-    # # Random targeting
-    # if np.abs(global_vect - global_target).sum() < 0.3:
-    #     global_target = np.random.random((3,))
+    # Random targeting
+    if np.abs(global_vect - global_target).sum() < 0.3:
+        global_target = np.random.random((3,))
 
     # 1. TRYB ŚCIEŻKI: Jeśli idziemy -> cel to aktualny krok
 

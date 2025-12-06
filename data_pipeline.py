@@ -75,24 +75,31 @@ class DataAcquisition:
 
                             try:
                                 with open("tmp.pkl", "wb") as file:
+                                    pckg_list = [
+                                        float(pckg[dimension])
+                                        for dimension in [
+                                            "arousal",
+                                            "valence",
+                                            "dominance",
+                                        ]
+                                    ]
+
+                                    requests.put(
+                                        "127.0.0.1:8050/newMeasurement", data=pckg
+                                    )
+                                    print("rest sent")
                                     pickle.dump(
-                                        [
-                                            pckg[dimension]
-                                            for dimension in [
-                                                "arousal",
-                                                "valence",
-                                                "dominance",
-                                            ]
-                                        ],
+                                        pckg_list,
                                         file,
                                     )
                             except Exception as e:
-                                print(e)
+                                raise e
 
                             # self.data_queue.put(pckg)
                     self.stop_recording(mgr)
                 except KeyboardInterrupt as e:
-                    print("send_annotate", e)
+                    # print("send_annotate", e)
+                    raise e
 
     def data_consumer(self, pckg_list):
         """CONSUMER THREAD: Reads data from the Queue"""
